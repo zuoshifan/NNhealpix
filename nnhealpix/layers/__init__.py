@@ -140,6 +140,36 @@ def AveragePooling(nside_in, nside_out):
     return Pooling(nside_in, nside_out, tf.keras.layers.AveragePooling1D)
 
 
+def UpSampling(nside_in, nside_out):
+    """Keras layer performing a up-sampling of input maps
+
+    Args:
+        * nside_in (integer): ``NSIDE`` parameter for the input maps.
+        * nside_out (integer): ``NSIDE`` parameter for the output maps.
+    """
+
+    file_in = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "ancillary_files",
+        "dgrade_from{}_to{}.npy".format(nside_out, nside_in),
+    )
+    try:
+        pixel_indices = np.load(file_in)
+    except:
+        pixel_indices = nnh.dgrade(nside_out, nside_in)
+
+    pixel_indices = np.array([ np.where(i == pixel_indices)[0][0] for i in np.arange(len(pixel_indices)) ]) # inverse of pooling
+
+    def f(x):
+        up_size = int((nside_out / nside_in) ** 2.0)
+        y = tf.keras.layers.UpSampling1D(size=up_size)(x)
+        y = OrderMap(pixel_indices)(y)
+        return y
+
+    return f
+
+
 def DegradeAndConvNeighbours(
         nside_in, nside_out, filters, use_bias=False, trainable=True
 ):
